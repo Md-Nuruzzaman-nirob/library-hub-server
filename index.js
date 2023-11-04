@@ -7,7 +7,7 @@ const {
 } = require('mongodb');
 require('dotenv').config()
 
-const port = process.env.PORT || 6000
+const port = process.env.PORT || 5001
 
 // middlewares
 app.use(cors())
@@ -31,6 +31,29 @@ async function run() {
         // await client.connect();
         // Send a ping to confirm a successful connection
 
+        // ====> collection <====
+        const categoriesCollection = client.db('Library-Hub').collection('categories')
+        const BooksCollection = client.db('Library-Hub').collection('books')
+
+
+
+        // ====> categories <====
+
+        app.get('/api/v1/categories', async (req, res) => {
+            const cursor = categoriesCollection.find()
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
+
+
+        // ====> book <====
+
+        app.post('/api/v1/create-book', async (req, res) => {
+            const addBook = req.body
+            const result = await BooksCollection.insertOne(addBook)
+            res.send(result)
+        })
 
 
 
