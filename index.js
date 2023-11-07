@@ -3,7 +3,8 @@ const app = express()
 const cors = require('cors');
 const {
     MongoClient,
-    ServerApiVersion
+    ServerApiVersion,
+    ObjectId
 } = require('mongodb');
 require('dotenv').config()
 
@@ -49,9 +50,37 @@ async function run() {
 
         // ====> book <====
 
+        app.get('/api/v1/read-book', async (req, res) => {
+            const cursor = BooksCollection.find()
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
         app.post('/api/v1/create-book', async (req, res) => {
             const addBook = req.body
             const result = await BooksCollection.insertOne(addBook)
+            res.send(result)
+        })
+
+
+        app.patch('/api/v1/update-book/:id', async (req, res) => {
+            const id = req.params
+            const newBookData = req.body
+
+            const query = {
+                _id: new ObjectId(id)
+            }
+            const result = await BooksCollection.insertOne(query)
+            res.send(result)
+        })
+
+
+        app.delete('/api/v1/delete-book/:id', async (req, res) => {
+            const id = req.params
+            const query = {
+                _id: new ObjectId(id)
+            }
+            const result = await BooksCollection.deleteOne(query)
             res.send(result)
         })
 
