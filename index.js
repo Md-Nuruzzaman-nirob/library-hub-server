@@ -33,16 +33,17 @@ const client = new MongoClient(uri, {
 });
 
 const verifyToken = (req, res, next) => {
-    console.log(req.query.email);
     const token = req.cookies.token
-    console.log(token);
     if (!token) {
+        console.log('first error')
         return res.status(401).send({
             message: 'unauthorize access'
         })
     }
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+        console.log(process.env.ACCESS_TOKEN);
         if (err) {
+            console.log(err)
             return res.status(401).send({
                 message: 'unauthorize access'
             })
@@ -67,7 +68,7 @@ async function run() {
         app.post('/api/v1/jwt', async (req, res) => {
             const user = req.body
             const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
-                expiresIn: '1h'
+                expiresIn: '2h'
             });
             res.cookie('token', token, {
                 httpOnly: true,
@@ -168,14 +169,14 @@ async function run() {
 
         //  ====> borrow <====
 
-        app.get('/api/v1/borrow-book', verifyToken, async (req, res) => {
-            console.log(req.query.email);
-            console.log(req.user.email);
-            if (req.user.email !== req.query.email) {
-                return res.status(403).send({
-                    message: 'forbidden access'
-                })
-            }
+        app.get('/api/v1/borrow-book', async (req, res) => {
+            // console.log(req.query.email);
+            // console.log(req.user.email);
+            // if (req.user.email !== req.query.email) {
+            //     return res.status(403).send({
+            //         message: 'forbidden access'
+            //     })
+            // }
             let query = {}
             if (req.query.email) {
                 query = {
@@ -184,7 +185,7 @@ async function run() {
 
             }
 
-            const cursor = booksCollection.find(query)
+            const cursor = borrowCollection.find(query)
             const result = await cursor.toArray()
             res.send(result)
         })
@@ -192,6 +193,15 @@ async function run() {
         app.post('/api/v1/borrow-book', async (req, res) => {
             const borrowBook = req.body
             const result = await borrowCollection.insertOne(borrowBook)
+            res.send(result)
+        })
+
+        app.delete('/api/v1/borrow-book/:id', async (req, res) => {
+            const id = req.params
+            const query = {
+                _id: new ObjectId(id)
+            }
+            const result = await borrowCollection.deleteOne(query)
             res.send(result)
         })
 
