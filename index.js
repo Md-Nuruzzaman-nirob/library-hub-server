@@ -7,13 +7,18 @@ const {
     ObjectId
 } = require('mongodb');
 require('dotenv').config()
+const cookieParser = require('cookie-parser')
+const jwt = require('jsonwebtoken');
 
 const port = process.env.PORT || 5001
 
 // middlewares
-app.use(cors())
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'library-hub-server.vercel.app'],
+    credentials: true
+}))
 app.use(express.json())
-
+app.use(cookieParser())
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.3v1c5gw.mongodb.net/?retryWrites=true&w=majority`;
@@ -27,6 +32,27 @@ const client = new MongoClient(uri, {
     }
 });
 
+const verifyToken = (req, res, next) => {
+    console.log(req.query.email);
+    const token = req.cookies.token
+    console.log(token);
+    if (!token) {
+        return res.status(401).send({
+            message: 'unauthorize access'
+        })
+    }
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({
+                message: 'unauthorize access'
+            })
+        }
+        req.user = decoded
+        next()
+    })
+}
+
+
 async function run() {
     try {
 
@@ -34,6 +60,32 @@ async function run() {
         const categoriesCollection = client.db('Library-Hub').collection('categories')
         const booksCollection = client.db('Library-Hub').collection('books')
         const borrowCollection = client.db('Library-Hub').collection('borrow')
+
+
+
+        // jwt
+        app.post('/api/v1/jwt', async (req, res) => {
+            const user = req.body
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
+                expiresIn: '1h'
+            });
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'none'
+            }).send({
+                success: true
+            });
+
+        })
+
+        // Logout
+        app.post('/api/v1/jwt/logout', async (req, res) => {
+            res.clearCookie('token')
+                .send({
+                    success: true
+                });
+        });
 
 
 
@@ -69,10 +121,40 @@ async function run() {
             const query = {
                 _id: new ObjectId(id)
             }
-            const result = await booksCollection.insertOne(query)
+
+            const updateBook = {
+                $set: {
+                    quantity: newBookData.quantity,
+                }
+            }
+            const result = await booksCollection.updateOne(query, updateBook)
             res.send(result)
         })
 
+        app.patch('/api/v1/update-book/all-content/:id', async (req, res) => {
+            const id = req.params
+            const newBookData = req.body
+
+            const query = {
+                _id: new ObjectId(id)
+            }
+
+            const updateBook = {
+                $set: {
+                    bookTitle: newBookData.bookTitle,
+                    authorName: newBookData.authorName,
+                    category: newBookData.category,
+                    quantity: newBookData.quantity,
+                    imageUrl: newBookData.imageUrl,
+                    description: newBookData.description,
+                    date: newBookData.date,
+                    rating: newBookData.rating,
+                    content: newBookData.content,
+                }
+            }
+            const result = await booksCollection.updateOne(query, updateBook)
+            res.send(result)
+        })
 
         app.delete('/api/v1/delete-book/:id', async (req, res) => {
             const id = req.params
@@ -86,8 +168,23 @@ async function run() {
 
         //  ====> borrow <====
 
-        app.get('/api/v1/borrow-book', async (req, res) => {
-            const cursor = booksCollection.find()
+        app.get('/api/v1/borrow-book', verifyToken, async (req, res) => {
+            console.log(req.query.email);
+            console.log(req.user.email);
+            if (req.user.email !== req.query.email) {
+                return res.status(403).send({
+                    message: 'forbidden access'
+                })
+            }
+            let query = {}
+            if (req.query.email) {
+                query = {
+                    email: req.query.email
+                };
+
+            }
+
+            const cursor = booksCollection.find(query)
             const result = await cursor.toArray()
             res.send(result)
         })
