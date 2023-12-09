@@ -14,7 +14,7 @@ const port = process.env.PORT || 5001
 
 // middlewares
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'library-hub-server.vercel.app'],
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'library-hub-server.vercel.app', "https://library-hub-ef83f.web.app"],
     credentials: true
 }))
 app.use(express.json())
